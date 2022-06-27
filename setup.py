@@ -12,5 +12,6 @@ setup(
     entry_points='''
         [console_scripts]
         cjdiff=cjdiff:cli
+        cjpatch=cjpatch:cli
     ''',
 )
