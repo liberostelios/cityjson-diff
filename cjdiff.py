@@ -1,7 +1,6 @@
 import json
 
 import click
-from pygments import highlight
 from rich.console import Console
 
 import hashlib
@@ -20,7 +19,7 @@ def dereference_list(l, verts):
         if isinstance(i, list):
             result.append(dereference_list(i, verts))
         else:
-            result.append([round(c, 3) for c in verts[i]])
+            result.append([round(float(c), 3) for c in verts[i]])
     
     return result
 
@@ -62,7 +61,7 @@ def dereference_citymodel(cm):
     verts = cm["vertices"]
 
     for co_id, co in cm["CityObjects"].items():
-        new_co = dereference_cityobject(co, cm["vertices"])
+        new_co = dereference_cityobject(co, verts)
         result[co_id] = hash_object(new_co)
     
     cm["CityObjects"] = result
@@ -79,7 +78,7 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
     else:
         dest_co = extract(dest, co_id_dest)
 
-    co_diff = DeepDiff(source_co, dest_co, ignore_order=True, get_deep_distance=True)
+    co_diff = DeepDiff(source_co, dest_co, ignore_order=True)
 
     if len(co_diff) == 0:
         return
@@ -91,18 +90,24 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
 
     if "values_changed" in co_diff:
         for path, change in co_diff["values_changed"].items():
-            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan]")
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [yellow]changed")
 
             console.print(f"-{change['old_value']}", style="red", highlight=False)
             console.print(f"+{change['new_value']}", style="green", highlight=False)
     
     if "dictionary_item_removed" in co_diff:
         for path in co_diff["dictionary_item_removed"]:
-            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan]")
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [red]deleted[/red]")
 
             console.print(f"-{extract(source_co, path)}", style="red", highlight=False)
+    
+    if "dictionary_item_added" in co_diff:
+        for path in co_diff["dictionary_item_added"]:
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [green]added[/green]")
 
-    if not any([x == "values_changed" or x == "dictionary_item_removed" for x in co_diff]):
+            console.print(f"+{extract(dest_co, path)}", style="green", highlight=False)
+
+    if any([not (x == "values_changed" or x == "dictionary_item_removed" or x == "dictionary_item_added") for x in co_diff]):
         console.print(co_diff)
 
 @click.command()
@@ -113,7 +118,7 @@ def cli(source, dest):
     console = Console()
 
     console.rule("[blue]CityJSON diff")
-    console.print(f'Comparing [red]{source.name}[/red] -> [green]{dest.name}[/green] :raised_hands:\n')
+    console.print(f'Comparing (a) [red]{source.name}[/red] -> (b) [green]{dest.name}[/green] :raised_hands:\n')
 
     cm_source = json.load(source)
     cm_dest = json.load(dest)
@@ -135,8 +140,6 @@ def cli(source, dest):
         if "dictionary_item_removed" in diff:
             for co_id in diff["dictionary_item_removed"]:
                 print_diff(co_id, None, cm_source, cm_dest, console)
-        
-
 
 if __name__ == "__main__":
     cli()
