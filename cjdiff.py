@@ -115,7 +115,7 @@ def cli(source, dest, reverse, slow, output):
     """Main command"""
     console = Console()
 
-    console.rule("[blue]CityJSON diff")
+    console.rule("[blue]CityJSON diff ✂️")
     console.print(f'Comparing (a) [red]{source.name}[/red] -> (b) [green]{dest.name}[/green] :raised_hands:\n')
 
     if reverse:
