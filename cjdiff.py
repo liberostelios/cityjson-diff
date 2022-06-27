@@ -54,11 +54,26 @@ def hash_object(obj):
 
     return m.hexdigest()
 
+def transform_vertices(verts, transform) -> list:
+    """Returns the list of vertices transformed back to their original values"""
+    result = []
+
+    t = transform["translate"]
+    s = transform["scale"]
+
+    return [[coords[0] * s[0] + t[0],
+             coords[1] * s[1] + t[1],
+             coords[2] * s[2] + t[2]]
+             for coords in verts]
+
 def dereference_citymodel(cm):
     """Returns the city model with the vertices of the city objects dereferenced"""
     result = {}
 
     verts = cm["vertices"]
+
+    if "transform" in cm:
+        verts = transform_vertices(verts, cm["transform"])
 
     for co_id, co in cm["CityObjects"].items():
         new_co = dereference_cityobject(co, verts)
