@@ -1,10 +1,12 @@
 import json
 
 import click
+from pygments import highlight
 from rich.console import Console
 
 import hashlib
 from deepdiff import DeepDiff
+from deepdiff.path import extract
 
 def validate_cityjson(data):
     """Return True if the data provided is a CityJSON city model"""
@@ -69,6 +71,23 @@ def dereference_citymodel(cm):
 
     return cm
 
+def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
+    """Prints the diff of a given city object"""
+    source_co = extract(source, co_id_src)
+    dest_co = extract(dest, co_id_dest)
+
+    co_diff = DeepDiff(source_co, dest_co, ignore_order=True, get_deep_distance=True)
+
+    console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
+    console.print(f"[b]+++ {co_id_dest.replace('root', 'b')} [/b]")
+
+    if "values_changed" in co_diff:
+        for path, change in co_diff["values_changed"].items():
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan]")
+
+            console.print(f"-{change['old_value']}", style="red", highlight=False)
+            console.print(f"+{change['new_value']}", style="green", highlight=False)
+
 @click.command()
 @click.argument('source', type=click.File('r'))
 @click.argument('dest', type=click.File('r'))
@@ -77,22 +96,26 @@ def cli(source, dest):
     console = Console()
 
     console.rule("[blue]CityJSON diff")
-    console.print(f'Comparing files [red]{source.name}[/red] -> [green]{dest.name}[/green] :raised_hands:')
+    console.print(f'Comparing [red]{source.name}[/red] -> [green]{dest.name}[/green] :raised_hands:\n')
 
     cm_source = json.load(source)
     cm_dest = json.load(dest)
 
-    cm_source = dereference_citymodel(cm_source)
-    cm_dest = dereference_citymodel(cm_dest)
+    cm_source_hash = dereference_citymodel(cm_source.copy())
+    cm_dest_hash = dereference_citymodel(cm_dest.copy())
 
     # console.print(cm)
 
     # console.print(f"{source.name} has {len(cm_source['CityObjects'])} objects!")
 
     with console.status("[bold green]Computing differences...") as status:
-        diff = DeepDiff(cm_source, cm_dest, ignore_order=True, cache_size=5000, get_deep_distance=True)
+        diff = DeepDiff(cm_source_hash, cm_dest_hash, ignore_order=True, cache_size=5000, get_deep_distance=True)
 
-        console.print(diff)
+        if "values_changed" in diff:
+            for co_id in diff["values_changed"]:
+                print_diff(co_id, co_id, cm_source, cm_dest, console)
+        else:
+            console.print(diff)
 
 if __name__ == "__main__":
     cli()
