@@ -95,6 +95,13 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
             console.print(f"-{change['old_value']}", style="red", highlight=False)
             console.print(f"+{change['new_value']}", style="green", highlight=False)
     
+    if "type_changes" in co_diff:
+        for path, change in co_diff["type_changes"].items():
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [yellow]changed")
+
+            console.print(f"-{change['old_value']}", style="red", highlight=False)
+            console.print(f"+{change['new_value']}", style="green", highlight=False)
+    
     if "dictionary_item_removed" in co_diff:
         for path in co_diff["dictionary_item_removed"]:
             console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [red]deleted[/red]")
@@ -107,7 +114,7 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
 
             console.print(f"+{extract(dest_co, path)}", style="green", highlight=False)
 
-    if any([not (x == "values_changed" or x == "dictionary_item_removed" or x == "dictionary_item_added") for x in co_diff]):
+    if any([not (x == "values_changed" or x == "dictionary_item_removed" or x == "dictionary_item_added" or x == "type_changes") for x in co_diff]):
         console.print(co_diff)
 
 @click.command()
