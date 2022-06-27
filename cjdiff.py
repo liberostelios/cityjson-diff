@@ -87,7 +87,10 @@ def dereference_citymodel(cm):
 
 def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
     """Prints the diff of a given city object"""
-    source_co = extract(source, co_id_src)
+    if co_id_src is None:
+        source_co = {}
+    else:
+        source_co = extract(source, co_id_src)
     if co_id_dest is None:
         dest_co = {}
     else:
@@ -99,7 +102,8 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
         return
 
     console.print("")
-    console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
+    if not co_id_src is None:
+        console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
     if not co_id_dest is None:
         console.print(f"[b]+++ {co_id_dest.replace('root', 'b')} [/b]")
 
@@ -162,6 +166,10 @@ def cli(source, dest):
         if "dictionary_item_removed" in diff:
             for co_id in diff["dictionary_item_removed"]:
                 print_diff(co_id, None, cm_source, cm_dest, console)
+
+        if "dictionary_item_added" in diff:
+            for co_id in diff["dictionary_item_added"]:
+                print_diff(None, co_id, cm_source, cm_dest, console)
 
 if __name__ == "__main__":
     cli()
