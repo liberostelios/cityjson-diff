@@ -1,3 +1,5 @@
+"""Module with CityJSON specific functions"""
+
 import hashlib
 import json
 
