@@ -20,7 +20,7 @@ def dereference_list(l, verts):
         if isinstance(i, list):
             result.append(dereference_list(i, verts))
         else:
-            result.append(verts[i])
+            result.append([round(c, 3) for c in verts[i]])
     
     return result
 
@@ -74,12 +74,20 @@ def dereference_citymodel(cm):
 def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
     """Prints the diff of a given city object"""
     source_co = extract(source, co_id_src)
-    dest_co = extract(dest, co_id_dest)
+    if co_id_dest is None:
+        dest_co = {}
+    else:
+        dest_co = extract(dest, co_id_dest)
 
     co_diff = DeepDiff(source_co, dest_co, ignore_order=True, get_deep_distance=True)
 
+    if len(co_diff) == 0:
+        return
+
+    console.print("")
     console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
-    console.print(f"[b]+++ {co_id_dest.replace('root', 'b')} [/b]")
+    if not co_id_dest is None:
+        console.print(f"[b]+++ {co_id_dest.replace('root', 'b')} [/b]")
 
     if "values_changed" in co_diff:
         for path, change in co_diff["values_changed"].items():
@@ -87,6 +95,15 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> None:
 
             console.print(f"-{change['old_value']}", style="red", highlight=False)
             console.print(f"+{change['new_value']}", style="green", highlight=False)
+    
+    if "dictionary_item_removed" in co_diff:
+        for path in co_diff["dictionary_item_removed"]:
+            console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan]")
+
+            console.print(f"-{extract(source_co, path)}", style="red", highlight=False)
+
+    if not any([x == "values_changed" or x == "dictionary_item_removed" for x in co_diff]):
+        console.print(co_diff)
 
 @click.command()
 @click.argument('source', type=click.File('r'))
@@ -114,8 +131,12 @@ def cli(source, dest):
         if "values_changed" in diff:
             for co_id in diff["values_changed"]:
                 print_diff(co_id, co_id, cm_source, cm_dest, console)
-        else:
-            console.print(diff)
+        
+        if "dictionary_item_removed" in diff:
+            for co_id in diff["dictionary_item_removed"]:
+                print_diff(co_id, None, cm_source, cm_dest, console)
+        
+
 
 if __name__ == "__main__":
     cli()
