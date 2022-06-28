@@ -8,7 +8,7 @@ from deepdiff.path import extract
 
 from cityjson import dereference_citymodel
 
-def print_diff(co_id_src, co_id_dest, source, dest, console) -> dict:
+def get_cityobject_diff(co_id_src, co_id_dest, source, dest) -> dict:
     """Prints the diff of a given city object"""
     if co_id_src is None:
         source_co = {}
@@ -19,11 +19,11 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> dict:
     else:
         dest_co = extract(dest, co_id_dest)
 
-    co_diff = DeepDiff(source_co, dest_co, ignore_order=True)
+    co_diff = DeepDiff(source_co, dest_co, ignore_order=True, report_repetition=True)
 
-    if len(co_diff) == 0:
-        return co_diff.to_dict()
+    return co_diff
 
+def print_cityobject_diff(co_id_src, co_id_dest, co_diff, console):
     console.print("")
     if not co_id_src is None:
         console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
@@ -48,18 +48,26 @@ def print_diff(co_id_src, co_id_dest, source, dest, console) -> dict:
         for path in co_diff["dictionary_item_removed"]:
             console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [red]deleted[/red]")
 
-            console.print(f"-{extract(source_co, path)}", style="red", highlight=False)
+            console.print(f"-{extract(co_diff.t1, path)}", style="red", highlight=False)
+    
+    for path in co_diff.get("iterable_item_removed", {}):
+        console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [red]deleted[/red]")
+
+        console.print(f"-{extract(co_diff.t1, path)}", style="red", highlight=False)
     
     if "dictionary_item_added" in co_diff:
         for path in co_diff["dictionary_item_added"]:
             console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [green]added[/green]")
 
-            console.print(f"+{extract(dest_co, path)}", style="green", highlight=False)
+            console.print(f"+{extract(co_diff.t2, path)}", style="green", highlight=False)
+    
+    for path in co_diff.get("iterable_item_added", {}):
+        console.print(f"[cyan]@@ {path.replace('root', '')} @@[/cyan] [green]added[/green]")
 
-    if any([not (x == "values_changed" or x == "dictionary_item_removed" or x == "dictionary_item_added" or x == "type_changes") for x in co_diff]):
-        console.print(co_diff)
+        console.print(f"+{extract(co_diff.t2, path)}", style="green", highlight=False)
 
-    return co_diff.to_dict()
+    # if any([not (x == "values_changed" or x == "dictionary_item_removed" or x == "dictionary_item_added" or x == "type_changes") for x in co_diff]):
+    #     console.print(co_diff)
 
 def fix_path(d, path) -> dict:
     result = {}
@@ -80,8 +88,14 @@ def remaster_diff(diff, path) -> object:
     if "dictionary_item_removed" in diff:
         diff["dictionary_item_removed"] = fix_path(diff["dictionary_item_removed"], path)
 
+    if "iterable_item_removed" in diff:
+        diff["iterable_item_removed"] = fix_path(diff["iterable_item_removed"], path)
+
     if "dictionary_item_added" in diff:
         diff["dictionary_item_added"] = fix_path(diff["dictionary_item_added"], path)
+    
+    if "iterable_item_added" in diff:
+        diff["iterable_item_added"] = fix_path(diff["iterable_item_added"], path)
     
     return diff
 
@@ -147,18 +161,24 @@ def cli(source, dest, reverse, slow, output):
 
             if "values_changed" in diff:
                 for co_id in diff["values_changed"]:
-                    new_diff = print_diff(co_id, co_id, cm_source, cm_dest, console)
+                    new_diff = get_cityobject_diff(co_id, co_id, cm_source, cm_dest)
+                    print_cityobject_diff(co_id, co_id, new_diff, console)
                     all_diff = merge(remaster_diff(new_diff, co_id), all_diff)
             
             if "dictionary_item_removed" in diff:
                 for co_id in diff["dictionary_item_removed"]:
-                    print_diff(co_id, None, cm_source, cm_dest, console)
+                    new_diff = get_cityobject_diff(co_id, None, cm_source, cm_dest)
+                    print_cityobject_diff(co_id, None, new_diff, console)
                     all_diff.setdefault("dictionary_item_removed", {})[co_id] = extract(cm_source, co_id)
 
             if "dictionary_item_added" in diff:
                 for co_id in diff["dictionary_item_added"]:
-                    print_diff(None, co_id, cm_source, cm_dest, console)
+                    new_diff = get_cityobject_diff(None, co_id, cm_source, cm_dest)
+                    print_cityobject_diff(None, co_id, new_diff, console)
                     all_diff.setdefault("dictionary_item_added", {})[co_id] = extract(cm_dest, co_id)
+            
+            if not output is None:
+                Delta(new_diff).dump(output)
 
 if __name__ == "__main__":
     cli()
