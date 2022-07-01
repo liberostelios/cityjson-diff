@@ -23,12 +23,12 @@ def get_cityobject_diff(co_id_src, co_id_dest, source, dest) -> dict:
 
     return co_diff
 
-def print_cityobject_diff(co_id_src, co_id_dest, co_diff, console):
+def print_cityobject_diff(path_src, path_dest, co_diff, console):
     console.print("")
-    if not co_id_src is None:
-        console.print(f"[b]--- {co_id_src.replace('root', 'a')} [/b]")
-    if not co_id_dest is None:
-        console.print(f"[b]+++ {co_id_dest.replace('root', 'b')} [/b]")
+    if not path_src is None:
+        console.print(f"[b]--- {path_src.replace('root', 'a')} [/b]")
+    if not path_dest is None:
+        console.print(f"[b]+++ {path_dest.replace('root', 'b')} [/b]")
 
     if "values_changed" in co_diff:
         for path, change in co_diff["values_changed"].items():
@@ -81,6 +81,8 @@ def fix_path(d, path) -> dict:
     result = []
     for p in d:
         result.append(p.replace('root', path))
+    
+    return result
 
 def remaster_diff(diff, path) -> object:
     """Returns the same diff, but with the root replace by the given path"""
@@ -166,24 +168,24 @@ def cli(source, dest, reverse, slow, output):
 
             if "values_changed" in diff:
                 if len(diff["values_changed"]) > 2:
-                    console.print(f"[orange]Too many object changes {len(diff['values_changed'])}! Will only show 2...[/orange]")
+                    console.print(f"[orange]Too many object changed {len(diff['values_changed'])}! Will only show 2...[/orange]")
 
-                for co_id in list(diff["values_changed"].keys())[:2]:
-                    new_diff = get_cityobject_diff(co_id, co_id, cm_source, cm_dest)
-                    print_cityobject_diff(co_id, co_id, new_diff, console)
-                    all_diff = merge(remaster_diff(new_diff, co_id), all_diff)
+                for path in list(diff["values_changed"].keys())[:2]:
+                    new_diff = get_cityobject_diff(path, path, cm_source, cm_dest)
+                    print_cityobject_diff(path, path, new_diff, console)
+                    all_diff = merge(remaster_diff(new_diff, path), all_diff)
             
             if "dictionary_item_removed" in diff:
-                for co_id in diff["dictionary_item_removed"]:
-                    new_diff = get_cityobject_diff(co_id, None, cm_source, cm_dest)
-                    print_cityobject_diff(co_id, None, new_diff, console)
-                    all_diff.setdefault("dictionary_item_removed", {})[co_id] = extract(cm_source, co_id)
+                for path in diff["dictionary_item_removed"]:
+                    new_diff = get_cityobject_diff(path, None, cm_source, cm_dest)
+                    print_cityobject_diff(path, None, new_diff, console)
+                    all_diff.setdefault("dictionary_item_removed", []).append(path)
 
             if "dictionary_item_added" in diff:
-                for co_id in diff["dictionary_item_added"]:
-                    new_diff = get_cityobject_diff(None, co_id, cm_source, cm_dest)
-                    print_cityobject_diff(None, co_id, new_diff, console)
-                    all_diff.setdefault("dictionary_item_added", {})[co_id] = extract(cm_dest, co_id)
+                for path in diff["dictionary_item_added"]:
+                    new_diff = get_cityobject_diff(None, path, cm_source, cm_dest)
+                    print_cityobject_diff(None, path, new_diff, console)
+                    all_diff.setdefault("dictionary_item_added", []).append(path)
             
             if not output is None:
                 Delta(new_diff).dump(output)
