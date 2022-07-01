@@ -70,12 +70,17 @@ def print_cityobject_diff(co_id_src, co_id_dest, co_diff, console):
     #     console.print(co_diff)
 
 def fix_path(d, path) -> dict:
-    result = {}
+    if isinstance(d, dict):
+        result = {}
 
+        for p in d:
+            result[p.replace('root', path)] = d[p]
+
+        return result
+    
+    result = []
     for p in d:
-        result[p.replace('root', path)] = d[p]
-
-    return result
+        result.append(p.replace('root', path))
 
 def remaster_diff(diff, path) -> object:
     """Returns the same diff, but with the root replace by the given path"""
@@ -160,7 +165,10 @@ def cli(source, dest, reverse, slow, output):
             all_diff = {}
 
             if "values_changed" in diff:
-                for co_id in diff["values_changed"]:
+                if len(diff["values_changed"]) > 2:
+                    console.print(f"[orange]Too many object changes {len(diff['values_changed'])}! Will only show 2...[/orange]")
+
+                for co_id in list(diff["values_changed"].keys())[:2]:
                     new_diff = get_cityobject_diff(co_id, co_id, cm_source, cm_dest)
                     print_cityobject_diff(co_id, co_id, new_diff, console)
                     all_diff = merge(remaster_diff(new_diff, co_id), all_diff)
